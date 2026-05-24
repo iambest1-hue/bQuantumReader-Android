@@ -26,6 +26,19 @@ object MarkdownGen {
         lines.add("> 来源: $url")
         lines.add("> ${metaParts.joinToString(" | ")}")
 
+        video.stat?.let { stat ->
+            val statInfo = buildString {
+                append("播放: ${formatNumber(stat.view)}")
+                append(" | 弹幕: ${formatNumber(stat.danmaku)}")
+                append(" | 评论: ${formatNumber(stat.reply)}")
+                append(" | 收藏: ${formatNumber(stat.favorite)}")
+                append(" | 硬币: ${formatNumber(stat.coin)}")
+                append(" | 分享: ${formatNumber(stat.share)}")
+                append(" | 点赞: ${formatNumber(stat.like)}")
+            }
+            lines.add("> $statInfo")
+        }
+
         val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         lines.add("> 提取时间: $dateStr")
         lines.add("")
@@ -96,4 +109,11 @@ object MarkdownGen {
     }
 
     private fun pad(n: Long): String = n.toString().padStart(2, '0')
+
+    private fun formatNumber(n: Long): String {
+        return when {
+            n >= 10000 -> "${n / 10000}.${(n % 10000) / 1000}万"
+            else -> n.toString()
+        }
+    }
 }

@@ -116,23 +116,27 @@ fun SettingsScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(24.dp),
+                        .padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Spacer(modifier = Modifier.height(48.dp))
+                    Spacer(modifier = Modifier.height(80.dp))
                     Text(
-                        text = "登录后可使用完整功能\n（字幕提取）",
+                        text = "登录后可使用完整功能\n（字幕提取、评论获取）",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
                     Button(onClick = { showWebView = true }) {
                         Text("登录B站账号")
                     }
                     if (state.statusText.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(state.statusText, color = MaterialTheme.colorScheme.error)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            state.statusText,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
             }

@@ -134,13 +134,18 @@ class VideoRepository(
     suspend fun downloadSubtitle(subtitleUrl: String): List<SubtitleEntry> =
         fetchSubtitleContent(subtitleUrl)
 
-    /** 获取视频评论 */
-    suspend fun getComments(aid: Long, page: Int = 1, pageSize: Int = 20): List<Comment> {
-        val resp = api.getComments(type = 1, oid = aid, sort = 1, ps = pageSize, pn = page)
-        if (resp.code != 0) {
-            throw Exception("获取评论失败: ${resp.message}")
+    /** 获取视频全部评论（翻页直到获取完，最多 200 条） */
+    suspend fun getComments(aid: Long, maxPages: Int = 10): List<Comment> {
+        val allComments = mutableListOf<Comment>()
+        for (page in 1..maxPages) {
+            val resp = api.getComments(type = 1, oid = aid, sort = 1, ps = 20, pn = page)
+            if (resp.code != 0 || resp.data == null) break
+            val replies = resp.data.replies ?: emptyList()
+            allComments.addAll(replies)
+            // 如果当前页不足 20 条，说明已到最后一页
+            if (replies.size < 20) break
         }
-        return resp.data?.replies ?: emptyList()
+        return allComments
     }
 
     // 移除 tryGetSubtitlesViaWbi 旧方法，改为上面的 getSubtitlesViaWbi

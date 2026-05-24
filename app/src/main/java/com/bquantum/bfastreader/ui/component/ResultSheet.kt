@@ -2,19 +2,18 @@ package com.bquantum.bfastreader.ui.component
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
@@ -31,16 +30,17 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import com.bquantum.bfastreader.data.model.SubtitleEntry
 import com.bquantum.bfastreader.domain.MarkdownGen
-import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +53,27 @@ fun ResultSheet(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val saveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/markdown")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri)?.use { out ->
+                        out.write(markdown.toByteArray(Charsets.UTF_8))
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "已保存", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    val filename = MarkdownGen.sanitizeFilename(videoTitle) + ".md"
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -68,7 +88,6 @@ fun ResultSheet(
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 32.dp)
         ) {
-            // Stats row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -82,7 +101,6 @@ fun ResultSheet(
             HorizontalDivider()
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Markdown preview
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -95,7 +113,6 @@ fun ResultSheet(
             HorizontalDivider()
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Action buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -123,7 +140,7 @@ fun ResultSheet(
                 }
 
                 Button(
-                    onClick = { saveToFile(context, markdown, videoTitle) },
+                    onClick = { saveLauncher.launch(filename) },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.SaveAlt, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
@@ -156,18 +173,4 @@ private fun shareMarkdown(context: Context, text: String) {
         putExtra(Intent.EXTRA_TEXT, text)
     }
     context.startActivity(Intent.createChooser(intent, "分享 Markdown"))
-}
-
-private fun saveToFile(context: Context, content: String, videoTitle: String) {
-    val filename = MarkdownGen.sanitizeFilename(videoTitle) + ".md"
-    val file = File(context.cacheDir, filename)
-    file.writeText(content)
-
-    val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-        addCategory(Intent.CATEGORY_OPENABLE)
-        type = "text/markdown"
-        putExtra(Intent.EXTRA_TITLE, filename)
-    }
-    // Fallback: save to cache and share via FileProvider
-    Toast.makeText(context, "已保存: ${file.absolutePath}", Toast.LENGTH_LONG).show()
 }

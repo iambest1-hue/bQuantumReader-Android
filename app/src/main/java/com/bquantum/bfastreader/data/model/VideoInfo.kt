@@ -18,7 +18,18 @@ data class VideoInfo(
     val duration: Long,
     val owner: VideoOwner,
     val pages: List<VideoPage>?,
-    val subtitle: VideoSubtitle?
+    val subtitle: VideoSubtitle?,
+    val stat: VideoStat?
+)
+
+data class VideoStat(
+    val view: Long,
+    val danmaku: Long,
+    val reply: Long,
+    val favorite: Long,
+    val coin: Long,
+    val share: Long,
+    val like: Long
 )
 
 data class VideoSubtitle(
