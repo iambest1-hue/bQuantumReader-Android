@@ -1,18 +1,13 @@
 package com.bquantum.bfastreader.ui.component
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -52,7 +47,6 @@ fun LinkInput(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextButton(
@@ -63,29 +57,27 @@ fun LinkInput(
                 Text("粘贴", style = MaterialTheme.typography.labelLarge)
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(
-                    onClick = { onUrlChange("") },
-                    enabled = url.isNotEmpty()
-                ) {
-                    Text(
-                        "清空",
-                        color = if (url.isNotEmpty())
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                    )
-                }
+            Button(
+                onClick = onParse,
+                enabled = enabled && url.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Text("量子阅读")
+            }
 
-                Button(
-                    onClick = onParse,
-                    enabled = enabled && url.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text("量子阅读")
-                }
+            TextButton(
+                onClick = { onUrlChange("") },
+                enabled = url.isNotEmpty()
+            ) {
+                Text(
+                    "清空",
+                    color = if (url.isNotEmpty())
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                )
             }
         }
     }
