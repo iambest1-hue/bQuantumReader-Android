@@ -161,9 +161,23 @@ private fun LoginWebView(
                 settings.builtInZoomControls = true
                 settings.displayZoomControls = false
 
+                // 底部留白，避免B站页面协议文字遮挡内容
+                setOnScrollChangeListener { _, _, scrollY, _, _ ->
+                    if (scrollY == 0) {
+                        scrollBy(0, 1)
+                    }
+                }
+
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView, url: String) {
-                        // 登录成功后B站会重定向到首页
+                        // 注入 JS 给页面底部增加留白
+                        view.evaluateJavascript("""
+                            (function(){
+                                var b = document.body;
+                                b.style.paddingBottom = '80px';
+                            })();
+                        """.trimIndent(), null)
+
                         if ((url.contains("bilibili.com") && !url.contains("passport") && !url.contains("login"))) {
                             val cookieStr = CookieManager.getInstance().getCookie(url) ?: ""
                             if (cookieStr.contains("SESSDATA")) {

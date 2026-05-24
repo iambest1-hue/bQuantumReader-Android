@@ -52,7 +52,7 @@ interface BiliApiService {
     suspend fun getComments(
         @Query("type") type: Int,
         @Query("oid") oid: Long,
-        @Query("sort") sort: Int = 1,
+        @Query("mode") mode: Int = 3,
         @Query("ps") ps: Int = 20,
         @Query("pn") pn: Int = 1
     ): CommentResponse

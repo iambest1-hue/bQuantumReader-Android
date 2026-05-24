@@ -26,6 +26,12 @@ object MarkdownGen {
         lines.add("> 来源: $url")
         lines.add("> ${metaParts.joinToString(" | ")}")
 
+        // 视频简介
+        if (!video.desc.isNullOrBlank()) {
+            lines.add("")
+            lines.add("> 简介: ${video.desc}")
+        }
+
         video.stat?.let { stat ->
             val statInfo = buildString {
                 append("播放: ${formatNumber(stat.view)}")

@@ -16,6 +16,7 @@ data class VideoInfo(
     @SerializedName("pic")
     val coverUrl: String,
     val duration: Long,
+    val desc: String?,
     val owner: VideoOwner,
     val pages: List<VideoPage>?,
     val subtitle: VideoSubtitle?,

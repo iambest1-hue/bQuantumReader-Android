@@ -138,7 +138,7 @@ class VideoRepository(
     suspend fun getComments(aid: Long, maxPages: Int = 10): List<Comment> {
         val allComments = mutableListOf<Comment>()
         for (page in 1..maxPages) {
-            val resp = api.getComments(type = 1, oid = aid, sort = 1, ps = 20, pn = page)
+            val resp = api.getComments(type = 1, oid = aid, mode = 3, ps = 20, pn = page)
             if (resp.code != 0 || resp.data == null) break
             val replies = resp.data.replies ?: emptyList()
             allComments.addAll(replies)
