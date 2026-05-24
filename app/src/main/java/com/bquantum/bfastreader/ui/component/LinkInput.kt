@@ -1,5 +1,6 @@
 package com.bquantum.bfastreader.ui.component
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,16 +9,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.unit.dp
@@ -49,12 +51,15 @@ fun LinkInput(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             IconButton(
                 onClick = {
                     clipboardManager.getText()?.text?.let { onUrlChange(it) }
-                },
-                modifier = Modifier.padding(end = 4.dp)
+                }
             ) {
                 Icon(
                     Icons.Default.ContentPaste,
@@ -63,24 +68,26 @@ fun LinkInput(
                 )
             }
 
-            IconButton(
-                onClick = { onUrlChange("") },
-                enabled = url.isNotEmpty(),
-                modifier = Modifier.padding(end = 4.dp)
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "清除",
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(
+                    onClick = { onUrlChange("") },
+                    enabled = url.isNotEmpty()
+                ) {
+                    Text(
+                        "清空",
+                        color = if (url.isNotEmpty())
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    )
+                }
 
-            FilledIconButton(
-                onClick = onParse,
-                enabled = enabled && url.isNotBlank(),
-                modifier = Modifier.padding(start = 8.dp)
-            ) {
-                Icon(Icons.Default.Search, contentDescription = "解析")
+                FilledIconButton(
+                    onClick = onParse,
+                    enabled = enabled && url.isNotBlank()
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = "解析")
+                }
             }
         }
     }
