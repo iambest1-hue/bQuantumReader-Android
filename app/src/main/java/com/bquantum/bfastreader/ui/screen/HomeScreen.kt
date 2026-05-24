@@ -136,6 +136,7 @@ fun HomeScreen(
         ResultSheet(
             markdown = state.markdown,
             subtitles = state.subtitles,
+            commentCount = state.commentCount,
             videoTitle = state.videoInfo?.title ?: "output",
             elapsedMs = state.elapsedMs,
             onDismiss = { viewModel.dismissResult() }

@@ -47,6 +47,7 @@ import kotlinx.coroutines.withContext
 fun ResultSheet(
     markdown: String,
     subtitles: List<SubtitleEntry>,
+    commentCount: Int,
     videoTitle: String,
     elapsedMs: Long,
     onDismiss: () -> Unit,
@@ -93,6 +94,7 @@ fun ResultSheet(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatChip("${subtitles.size} 条字幕")
+                StatChip("$commentCount 条评论")
                 StatChip("${subtitles.sumOf { it.content.length }} 字")
                 StatChip("${elapsedMs / 1000}.${(elapsedMs % 1000) / 100}s")
             }

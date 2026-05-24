@@ -41,7 +41,7 @@ fun VideoInfoCard(
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                        .data(video.coverUrl)
+                        .data(video.coverUrl.replace("http://", "https://"))
                         .setHeader("Referer", "https://www.bilibili.com/")
                         .crossfade(true)
                         .build(),

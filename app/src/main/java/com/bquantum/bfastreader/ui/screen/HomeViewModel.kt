@@ -25,6 +25,7 @@ data class HomeUiState(
     val videoInfo: VideoInfo? = null,
     val subtitles: List<SubtitleEntry> = emptyList(),
     val markdown: String = "",
+    val commentCount: Int = 0,
     val phase: Phase = Phase.IDLE,
     val error: String? = null,
     val elapsedMs: Long = 0,
@@ -138,7 +139,7 @@ class HomeViewModel(
 
                 val markdown = MarkdownGen.generate(video, subtitles, url, comments)
                 _state.update {
-                    it.copy(phase = Phase.DONE, subtitles = subtitles, markdown = markdown, error = null)
+                    it.copy(phase = Phase.DONE, subtitles = subtitles, markdown = markdown, commentCount = comments.size, error = null)
                 }
             } catch (e: NoSubtitleException) {
                 _state.update { it.copy(phase = Phase.ERROR, error = e.message) }
@@ -156,7 +157,7 @@ class HomeViewModel(
     }
 
     fun dismissResult() {
-        _state.update { it.copy(phase = Phase.PARSED, subtitles = emptyList(), markdown = "", elapsedMs = 0) }
+        _state.update { it.copy(phase = Phase.PARSED, subtitles = emptyList(), markdown = "", commentCount = 0, elapsedMs = 0) }
     }
 
     private fun startTimer() {
