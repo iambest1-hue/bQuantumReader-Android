@@ -1,5 +1,6 @@
 package com.bquantum.bfastreader.ui.component
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -57,14 +58,19 @@ fun LinkInput(
                 Text("粘贴", style = MaterialTheme.typography.labelLarge)
             }
 
-            Button(
-                onClick = onParse,
-                enabled = enabled && url.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center
             ) {
-                Text("量子阅读")
+                Button(
+                    onClick = onParse,
+                    enabled = enabled && url.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("量子阅读")
+                }
             }
 
             TextButton(
