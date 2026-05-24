@@ -20,12 +20,18 @@ data class CommentPage(
 
 data class Comment(
     val rpid: Long,
-    val content: String?,
+    val content: CommentContent?,
     val member: CommentMember?,
     val ctime: Long,
     @SerializedName("like")
     val likes: Int,
     val rcount: Int
+) {
+    val message: String get() = content?.message ?: ""
+}
+
+data class CommentContent(
+    val message: String?
 )
 
 data class CommentMember(

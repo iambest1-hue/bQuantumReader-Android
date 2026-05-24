@@ -72,7 +72,7 @@ object MarkdownGen {
                 val date = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                     .format(Date(c.ctime * 1000))
                 val userName = c.member?.uname ?: "匿名用户"
-                val content = c.content ?: ""
+                val content = c.message
                 lines.add("- **$userName** ($date)")
                 lines.add("  $content")
                 if (c.likes > 0) lines.add("  *${c.likes} 赞*")
