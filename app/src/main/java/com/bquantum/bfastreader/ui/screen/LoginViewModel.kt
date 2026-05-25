@@ -26,6 +26,7 @@ class LoginViewModel(
 
     private val _state = MutableStateFlow(LoginUiState())
     val state: StateFlow<LoginUiState> = _state.asStateFlow()
+    private var switchingAccount = false
 
 
     init {
@@ -40,6 +41,14 @@ class LoginViewModel(
     fun onWebViewLoginSuccess(cred: BiliCredential) {
         viewModelScope.launch {
             try {
+                // 切换账号时，先清除旧凭证
+                if (switchingAccount) {
+                    switchingAccount = false
+                    wbiSign.clearCache()
+                    val cm = CookieManager.getInstance()
+                    cm.removeAllCookies(null)
+                    cm.flush()
+                }
                 _state.update { it.copy(statusText = "正在获取用户信息...") }
 
                 // 关键：显式将 cookie 种到 api.bilibili.com 域名
@@ -103,8 +112,7 @@ class LoginViewModel(
         }
     }
 
-    fun switchAccount() {
-        // 同登出，然后由 SettingsScreen 跳转到 WebView
-        logout()
+    fun prepareSwitchAccount() {
+        switchingAccount = true
     }
 }

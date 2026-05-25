@@ -161,7 +161,7 @@ fun SettingsScreen(
                         }
                         Button(
                             onClick = {
-                                viewModel.switchAccount()
+                                viewModel.prepareSwitchAccount()
                                 showWebView = true
                             },
                             modifier = Modifier.weight(1f)
