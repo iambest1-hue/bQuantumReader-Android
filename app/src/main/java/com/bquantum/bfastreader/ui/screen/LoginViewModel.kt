@@ -4,6 +4,7 @@ import android.webkit.CookieManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bquantum.bfastreader.data.api.BiliApiService
+import com.bquantum.bfastreader.data.api.WbiSign
 import com.bquantum.bfastreader.data.local.BiliCredential
 import com.bquantum.bfastreader.data.local.CredentialStorage
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +20,8 @@ data class LoginUiState(
 
 class LoginViewModel(
     private val api: BiliApiService,
-    private val credentialStorage: CredentialStorage
+    private val credentialStorage: CredentialStorage,
+    private val wbiSign: WbiSign
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginUiState())
@@ -88,5 +90,21 @@ class LoginViewModel(
 
     override fun onCleared() {
         super.onCleared()
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            credentialStorage.clear()
+            wbiSign.clearCache()
+            val cm = CookieManager.getInstance()
+            cm.removeAllCookies(null)
+            cm.flush()
+            _state.update { LoginUiState() }
+        }
+    }
+
+    fun switchAccount() {
+        // 同登出，然后由 SettingsScreen 跳转到 WebView
+        logout()
     }
 }

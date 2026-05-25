@@ -67,6 +67,6 @@ val appModule = module {
         VideoRepository(get(), get(), get(), get())
     }
 
-    viewModel { LoginViewModel(get(), get()) }
+    viewModel { LoginViewModel(get(), get(), get()) }
     viewModel { HomeViewModel(get(), get(), get()) }
 }

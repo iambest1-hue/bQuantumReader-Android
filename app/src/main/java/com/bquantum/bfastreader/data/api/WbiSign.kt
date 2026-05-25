@@ -24,6 +24,10 @@ class WbiSign(
     private var cachedMixinKey: String? = null
     private val mutex = Mutex()
 
+    fun clearCache() {
+        cachedMixinKey = null
+    }
+
     suspend fun getMixinKey(bvid: String? = null): String {
         cachedMixinKey?.let { return it }
         mutex.withLock {
