@@ -54,7 +54,7 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("b量子阅读") },
+                title = { Text("b量子速读") },
                 actions = {
                     // 登录状态指示
                     if (state.credential.isLoggedIn) {

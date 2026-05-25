@@ -69,7 +69,7 @@ fun LinkInput(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
-                    Text("量子阅读")
+                    Text("量子速读")
                 }
             }
 
