@@ -150,7 +150,17 @@ fun HomeScreen(
                 TextButton(onClick = { viewModel.dismissError() }) {
                     Text("确定")
                 }
-            }
+            },
+            dismissButton = if (state.loginRequired) {
+                {
+                    TextButton(onClick = {
+                        viewModel.dismissError()
+                        onSettings()
+                    }) {
+                        Text("去登录")
+                    }
+                }
+            } else null
         )
     }
 

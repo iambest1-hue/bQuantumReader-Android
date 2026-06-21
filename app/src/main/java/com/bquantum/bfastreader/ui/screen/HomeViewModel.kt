@@ -2,6 +2,7 @@ package com.bquantum.bfastreader.ui.screen
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bquantum.bfastreader.data.api.BiliApiService
 import com.bquantum.bfastreader.data.local.BiliCredential
 import com.bquantum.bfastreader.data.local.CredentialStorage
 import com.bquantum.bfastreader.data.model.SubtitleEntry
@@ -30,7 +31,8 @@ data class HomeUiState(
     val phase: Phase = Phase.IDLE,
     val error: String? = null,
     val elapsedMs: Long = 0,
-    val credential: BiliCredential = BiliCredential()
+    val credential: BiliCredential = BiliCredential(),
+    val loginRequired: Boolean = false
 )
 
 enum class Phase {
@@ -45,7 +47,8 @@ enum class Phase {
 class HomeViewModel(
     private val repository: VideoRepository,
     private val credentialStorage: CredentialStorage,
-    private val linkParser: LinkParser
+    private val linkParser: LinkParser,
+    private val api: BiliApiService
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -123,6 +126,14 @@ class HomeViewModel(
         }
 
     fun extractSubtitles() {
+        val credential = _state.value.credential
+        if (!credential.isLoggedIn) {
+            _state.update {
+                it.copy(phase = Phase.ERROR, error = "请先登录B站账号，再提取字幕", loginRequired = true)
+            }
+            return
+        }
+
         val video = _state.value.videoInfo ?: return
         val bvid = _state.value.currentBvid ?: return
         val url = "https://www.bilibili.com/video/$bvid"
@@ -132,6 +143,19 @@ class HomeViewModel(
             startTimer()
 
             try {
+                // 服务端检测登录是否过期
+                try {
+                    val navResp = api.getNav()
+                    if (navResp.data?.isLogin != true) {
+                        _state.update {
+                            it.copy(phase = Phase.ERROR, error = "B站登录已过期，请重新登录", loginRequired = true)
+                        }
+                        return@launch
+                    }
+                } catch (_: Exception) {
+                    // 网络异常时不阻断提取
+                }
+
                 // 并行获取字幕和评论
                 val subtitlesDeferred = viewModelScope.async { repository.getSubtitles(bvid, video.cid) }
                 val commentsDeferred = viewModelScope.async {
@@ -160,7 +184,7 @@ class HomeViewModel(
 
     fun dismissError() {
         val prevPhase = if (_state.value.videoInfo != null) Phase.PARSED else Phase.IDLE
-        _state.update { it.copy(phase = prevPhase, error = null) }
+        _state.update { it.copy(phase = prevPhase, error = null, loginRequired = false) }
     }
 
     fun dismissResult() {
