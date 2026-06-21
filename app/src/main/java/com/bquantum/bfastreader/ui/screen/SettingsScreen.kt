@@ -201,6 +201,13 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(32.dp))
                     Button(
+                        onClick = { showWebViewLogin = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("账号密码 / 手机号登录")
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
                         onClick = {
                             showQrLogin = true
                             viewModel.startQrLogin()
@@ -208,13 +215,6 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("扫码登录")
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = { showWebViewLogin = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("账号密码 / 手机号登录")
                     }
                     if (state.statusText.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(16.dp))
