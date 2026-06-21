@@ -122,6 +122,13 @@ app/
 
 ---
 
+## 关于
+
+- **项目地址**：https://github.com/iambest1-hue/bQuantumReader-Android
+- **作者**：[iambest1-hue](https://github.com/iambest1-hue)
+
+---
+
 ## 自愿捐助
 
 如果这个项目对你有帮助，欢迎请作者喝杯咖啡 ☕
