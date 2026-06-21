@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.Cookie
-import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
 enum class QrPhase {
     IDLE,
@@ -210,7 +210,7 @@ class LoginViewModel(
             )
         }
         if (cookies.isNotEmpty()) {
-            cookieProvider.saveFromResponse(HttpUrl.get(apiUrl), cookies)
+            cookieProvider.saveFromResponse("https://api.bilibili.com".toHttpUrl(), cookies)
         }
     }
 
