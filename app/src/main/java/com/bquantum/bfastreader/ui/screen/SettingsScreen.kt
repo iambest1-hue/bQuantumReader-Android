@@ -351,9 +351,9 @@ private fun QrLoginScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(32.dp))
 
-        // 协议复选框
+        // 协议复选框 — 与二维码、按钮分离，不会叠加
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
