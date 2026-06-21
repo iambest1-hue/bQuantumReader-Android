@@ -7,6 +7,7 @@ import com.bquantum.bfastreader.data.api.BiliApiService
 import com.bquantum.bfastreader.data.api.QrPollCode
 import com.bquantum.bfastreader.data.api.WbiSign
 import com.bquantum.bfastreader.data.local.BiliCredential
+import com.bquantum.bfastreader.data.local.CookieProvider
 import com.bquantum.bfastreader.data.local.CredentialStorage
 import com.bquantum.bfastreader.data.repository.LoginRepository
 import kotlinx.coroutines.Job
@@ -18,6 +19,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import okhttp3.Cookie
+import okhttp3.HttpUrl
 
 enum class QrPhase {
     IDLE,
@@ -40,7 +43,8 @@ class LoginViewModel(
     private val api: BiliApiService,
     private val credentialStorage: CredentialStorage,
     private val wbiSign: WbiSign,
-    private val loginRepository: LoginRepository
+    private val loginRepository: LoginRepository,
+    private val cookieProvider: CookieProvider
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginUiState())
@@ -168,7 +172,7 @@ class LoginViewModel(
         }
     }
 
-    /** 将登录 cookie 显式种到 api.bilibili.com，确保 API 调用能携带 */
+    /** 将登录 cookie 种到 CookieManager 和 CookieProvider，确保 API 调用能携带 */
     private fun spreadCookiesToApiDomain(cred: BiliCredential) {
         val cm = CookieManager.getInstance()
         val apiUrl = "https://api.bilibili.com"
@@ -185,6 +189,29 @@ class LoginViewModel(
             cm.setCookie(apiUrl, "DedeUserID=${cred.dedeuserId}; domain=.bilibili.com; path=/")
         }
         cm.flush()
+
+        // 同步到 CookieProvider，OkHttp BridgeInterceptor 从这里取 cookie
+        val cookies = buildList {
+            if (cred.sessdata.isNotBlank()) add(
+                Cookie.Builder().name("SESSDATA").value(cred.sessdata)
+                    .domain("api.bilibili.com").path("/").secure().httpOnly().build()
+            )
+            if (cred.biliJct.isNotBlank()) add(
+                Cookie.Builder().name("bili_jct").value(cred.biliJct)
+                    .domain("api.bilibili.com").path("/").httpOnly().build()
+            )
+            if (cred.buvid3.isNotBlank()) add(
+                Cookie.Builder().name("buvid3").value(cred.buvid3)
+                    .domain("api.bilibili.com").path("/").build()
+            )
+            if (cred.dedeuserId.isNotBlank()) add(
+                Cookie.Builder().name("DedeUserID").value(cred.dedeuserId)
+                    .domain("api.bilibili.com").path("/").build()
+            )
+        }
+        if (cookies.isNotEmpty()) {
+            cookieProvider.saveFromResponse(HttpUrl.get(apiUrl), cookies)
+        }
     }
 
     override fun onCleared() {
