@@ -31,14 +31,23 @@ val appModule = module {
             .cookieJar(cookieProvider)
             .addInterceptor { chain ->
                 val original = chain.request()
+                val cookiesFromCm = cookieManager.getCookie(original.url.toString())
+
+                // CookieManager 为空时从 CookieProvider 回退
+                val cookieHeader = if (!cookiesFromCm.isNullOrBlank()) {
+                    cookiesFromCm
+                } else {
+                    cookieProvider.loadForRequest(original.url)
+                        .joinToString("; ") { "${it.name}=${it.value}" }
+                        .ifBlank { null }
+                }
+
                 val request = original.newBuilder()
                     .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
                     .header("Referer", "https://www.bilibili.com/")
                     .apply {
-                        // 直接从 WebView CookieManager 注入 cookie 字符串
-                        val cookies = cookieManager.getCookie(original.url.toString())
-                        if (!cookies.isNullOrBlank()) {
-                            header("Cookie", cookies)
+                        if (cookieHeader != null) {
+                            header("Cookie", cookieHeader)
                         }
                     }
                     .build()

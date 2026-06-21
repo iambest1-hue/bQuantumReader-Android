@@ -133,12 +133,7 @@ class LoginViewModel(
         viewModelScope.launch {
             try {
                 wbiSign.clearCache()
-                val cm = CookieManager.getInstance()
-                cm.removeAllCookies(null)
-                cm.flush()
-
                 _state.update { it.copy(statusText = "正在获取用户信息...") }
-                spreadCookiesToApiDomain(cred)
                 finalizeLogin(cred)
             } catch (_: Exception) {
                 credentialStorage.save(cred)
