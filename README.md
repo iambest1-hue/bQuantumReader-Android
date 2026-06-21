@@ -20,7 +20,7 @@
 
 ## 下载
 
-[**下载 v0.2.1 APK**](https://github.com/iambest1-hue/bQuantumReader-Android/releases/tag/v0.2.1)
+[**下载 v0.2.2 APK**](https://github.com/iambest1-hue/bQuantumReader-Android/releases/tag/v0.2.2)
 
 | 要求 | 说明 |
 |------|------|
