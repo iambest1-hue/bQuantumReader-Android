@@ -4,7 +4,9 @@ import android.webkit.CookieManager
 import com.bquantum.bfastreader.App
 import com.bquantum.bfastreader.data.api.BiliApiService
 import com.bquantum.bfastreader.data.api.WbiSign
+import com.bquantum.bfastreader.data.local.CookieProvider
 import com.bquantum.bfastreader.data.local.CredentialStorage
+import com.bquantum.bfastreader.data.repository.LoginRepository
 import com.bquantum.bfastreader.data.repository.VideoRepository
 import com.bquantum.bfastreader.domain.LinkParser
 import com.bquantum.bfastreader.ui.screen.HomeViewModel
@@ -18,11 +20,15 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 val appModule = module {
+    single { CookieProvider() }
+
     single {
         val cookieManager = CookieManager.getInstance()
         cookieManager.setAcceptCookie(true)
+        val cookieProvider: CookieProvider = get()
 
         OkHttpClient.Builder()
+            .cookieJar(cookieProvider)
             .addInterceptor { chain ->
                 val original = chain.request()
                 val request = original.newBuilder()
@@ -67,6 +73,10 @@ val appModule = module {
         VideoRepository(get(), get(), get(), get())
     }
 
-    viewModel { LoginViewModel(get(), get(), get()) }
+    single {
+        LoginRepository(get(), get())
+    }
+
+    viewModel { LoginViewModel(get(), get(), get(), get()) }
     viewModel { HomeViewModel(get(), get(), get(), get()) }
 }

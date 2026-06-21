@@ -61,5 +61,6 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coroutines.android)
     implementation(libs.datastore.preferences)
+    implementation(libs.zxing.core)
     debugImplementation(libs.compose.ui.tooling)
 }

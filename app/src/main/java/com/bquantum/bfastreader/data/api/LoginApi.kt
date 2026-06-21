@@ -37,3 +37,10 @@ data class NavUserData(
     @SerializedName("wbi_img")
     val wbiImg: com.bquantum.bfastreader.data.model.WbiImg?
 )
+
+object QrPollCode {
+    const val SUCCESS = 0
+    const val WAITING = 86038
+    const val SCANNED = 86090
+    const val EXPIRED = 86101
+}
