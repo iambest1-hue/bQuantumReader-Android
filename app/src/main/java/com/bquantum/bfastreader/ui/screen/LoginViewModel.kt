@@ -82,7 +82,7 @@ class LoginViewModel(
                     }
                     pollQrLogin(resp.data.qrcodeKey)
                 } else {
-                    _state.update { it.copy(statusText = "获取二维码失败", qrPhase = QrPhase.FAILED) }
+                    _state.update { it.copy(statusText = resp.message.ifEmpty { "获取二维码失败" }, qrPhase = QrPhase.FAILED) }
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(statusText = e.message ?: "获取二维码失败", qrPhase = QrPhase.FAILED) }

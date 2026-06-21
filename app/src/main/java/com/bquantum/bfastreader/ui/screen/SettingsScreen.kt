@@ -3,6 +3,9 @@ package com.bquantum.bfastreader.ui.screen
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.webkit.CookieManager
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -52,7 +55,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
+import com.bquantum.bfastreader.data.local.BiliCredential
 import com.bquantum.bfastreader.ui.util.generateQrBitmap
 import org.koin.androidx.compose.koinViewModel
 
@@ -64,6 +69,7 @@ fun SettingsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showQrLogin by remember { mutableStateOf(false) }
+    var showWebViewLogin by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.refreshCredential()
@@ -72,11 +78,22 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("账号设置") },
+                title = {
+                    Text(
+                        when {
+                            showWebViewLogin -> "账号登录"
+                            showQrLogin -> "扫码登录"
+                            else -> "账号设置"
+                        }
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = {
-                        if (showQrLogin) showQrLogin = false
-                        else onBack()
+                        when {
+                            showWebViewLogin -> showWebViewLogin = false
+                            showQrLogin -> showQrLogin = false
+                            else -> onBack()
+                        }
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
@@ -96,6 +113,13 @@ fun SettingsScreen(
         ) {
             if (showQrLogin) {
                 QrLoginScreen(viewModel = viewModel)
+            } else if (showWebViewLogin) {
+                WebViewLoginScreen(
+                    onLoginSuccess = { cred ->
+                        viewModel.onWebViewLoginSuccess(cred)
+                        showWebViewLogin = false
+                    }
+                )
             } else if (state.credential.isLoggedIn) {
                 Column(
                     modifier = Modifier
@@ -176,11 +200,21 @@ fun SettingsScreen(
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(32.dp))
-                    Button(onClick = {
-                        showQrLogin = true
-                        viewModel.startQrLogin()
-                    }) {
-                        Text("登录B站账号")
+                    Button(
+                        onClick = {
+                            showQrLogin = true
+                            viewModel.startQrLogin()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("扫码登录")
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = { showWebViewLogin = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("账号密码 / 手机号登录")
                     }
                     if (state.statusText.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(16.dp))
@@ -194,6 +228,42 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun WebViewLoginScreen(
+    onLoginSuccess: (BiliCredential) -> Unit
+) {
+    AndroidView(
+        factory = { ctx ->
+            WebView(ctx).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.userAgentString = "Mozilla/5.0 (Linux; Android 12; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+                settings.useWideViewPort = true
+                settings.loadWithOverviewMode = true
+                settings.setSupportZoom(true)
+                settings.builtInZoomControls = true
+                settings.displayZoomControls = false
+
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView, url: String) {
+                        if (url.contains("bilibili.com") && !url.contains("passport") && !url.contains("login")) {
+                            val cookieStr = CookieManager.getInstance().getCookie(url) ?: ""
+                            if (cookieStr.contains("SESSDATA")) {
+                                val cred = parseCookies(cookieStr)
+                                onLoginSuccess(cred)
+                            }
+                        }
+                    }
+                }
+
+                CookieManager.getInstance().removeAllCookies(null)
+                loadUrl("https://passport.bilibili.com/login")
+            }
+        },
+        modifier = Modifier.fillMaxSize()
+    )
 }
 
 @Composable
@@ -283,7 +353,7 @@ private fun QrLoginScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // 协议复选框 — 原生 Compose 布局，不会叠加
+        // 协议复选框
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -310,4 +380,19 @@ private fun QrLoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
     }
+}
+
+private fun parseCookies(cookieStr: String): BiliCredential {
+    val map = cookieStr.split(";").associate { part ->
+        val trimmed = part.trim()
+        val eq = trimmed.indexOf('=')
+        if (eq > 0) trimmed.substring(0, eq) to trimmed.substring(eq + 1)
+        else trimmed to ""
+    }
+    return BiliCredential(
+        sessdata = map["SESSDATA"] ?: "",
+        biliJct = map["bili_jct"] ?: "",
+        buvid3 = map["buvid3"] ?: "",
+        dedeuserId = map["DedeUserID"] ?: ""
+    )
 }
