@@ -120,6 +120,16 @@ app/
 
 - [bQuantumReader](https://github.com/iambest1-hue/bQuantumReader) — 浏览器扩展版（Chrome / Edge），支持本地 Whisper 语音识别
 
+---
+
+## 自愿捐助
+
+如果这个项目对你有帮助，欢迎请作者喝杯咖啡 ☕
+
+| 微信 | 支付宝 |
+|------|--------|
+| ![微信收款码](assets/donate/微信收款码.png) | ![支付宝收款码](assets/donate/支付宝收款码.png) |
+
 ## 许可证
 
 [MIT License](LICENSE)
