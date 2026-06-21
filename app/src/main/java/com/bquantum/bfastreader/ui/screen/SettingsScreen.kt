@@ -186,10 +186,12 @@ fun SettingsScreen(
                     ) {
                         Text("登出")
                     }
+                    Spacer(modifier = Modifier.weight(1f))
+                    HorizontalDivider()
+                    AboutSection()
                 }
                 Spacer(modifier = Modifier.height(24.dp))
-                HorizontalDivider()
-                AboutSection()
+
             } else {
                 Column(
                     modifier = Modifier
