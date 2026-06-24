@@ -21,13 +21,7 @@ interface BiliApiService {
         @Query("bvid") bvid: String,
         @Query("cid") cid: Long,
         @Query("w_rid") wRid: String,
-        @Query("wts") wts: Long,
-        @Query("isGaiaAvoided") isGaiaAvoided: String = "false",
-        @Query("web_location") webLocation: String = "1315873",
-        @Query("dm_img_list") dmImgList: String = "[]",
-        @Query("dm_img_str") dmImgStr: String = "AA",
-        @Query("dm_cover_img_str") dmCoverImgStr: String = "AA",
-        @Query("dm_img_inter") dmImgInter: String = """{"ds":[],"wh":[0,0,0],"of":[0,0,0]}"""
+        @Query("wts") wts: Long
     ): BiliResponse<com.bquantum.bfastreader.data.model.PlayerData>
 
     @GET("x/player/v2")

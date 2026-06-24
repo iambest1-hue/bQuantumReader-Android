@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bquantum.bfastreader.data.api.BiliApiService
 import com.bquantum.bfastreader.data.local.BiliCredential
+import com.bquantum.bfastreader.data.local.CookieProvider
 import com.bquantum.bfastreader.data.local.CredentialStorage
 import com.bquantum.bfastreader.data.model.SubtitleEntry
 import com.bquantum.bfastreader.data.model.VideoInfo
+import com.bquantum.bfastreader.data.model.VideoPage
 import com.bquantum.bfastreader.data.repository.NoSubtitleException
 import com.bquantum.bfastreader.data.repository.VideoRepository
 import com.bquantum.bfastreader.domain.LinkParser
@@ -20,6 +22,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okhttp3.Cookie
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
 data class HomeUiState(
     val inputUrl: String = "",
@@ -32,14 +36,47 @@ data class HomeUiState(
     val error: String? = null,
     val elapsedMs: Long = 0,
     val credential: BiliCredential = BiliCredential(),
-    val loginRequired: Boolean = false
+    val loginRequired: Boolean = false,
+    // 系列提取相关
+    val seriesInfo: SeriesInfo? = null,
+    val extractionMode: ExtractionMode = ExtractionMode.SINGLE,
+    val seriesProgress: SeriesProgress? = null,
+    val seriesResults: List<SeriesPartResult>? = null,
+    val seriesMergedMarkdown: String = ""
 )
+
+data class SeriesInfo(
+    val total: Int,
+    val pages: List<VideoPage>
+)
+
+data class SeriesProgress(
+    val current: Int,
+    val total: Int,
+    val part: String
+)
+
+data class SeriesPartResult(
+    val page: Int,
+    val part: String,
+    val subtitles: List<SubtitleEntry>,
+    val markdown: String,
+    val elapsedMs: Long,
+    val error: String? = null
+)
+
+enum class ExtractionMode {
+    SINGLE,
+    SERIES
+}
 
 enum class Phase {
     IDLE,
     PARSING,
     PARSED,
     EXTRACTING,
+    SERIES_EXTRACTING,
+    SERIES_DONE,
     DONE,
     ERROR
 }
@@ -48,19 +85,43 @@ class HomeViewModel(
     private val repository: VideoRepository,
     private val credentialStorage: CredentialStorage,
     private val linkParser: LinkParser,
-    private val api: BiliApiService
+    private val api: BiliApiService,
+    private val cookieProvider: CookieProvider
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
     private var timerJob: Job? = null
+    private var _seriesCancelled = false
 
     init {
         viewModelScope.launch {
             credentialStorage.credential.collect { cred ->
                 _state.update { it.copy(credential = cred) }
+                if (cred.isLoggedIn) {
+                    restoreCookiesIfNeeded(cred)
+                }
             }
         }
+    }
+
+    /** 从持久化凭证恢复 CookieProvider（解决 App 重启后 cookie 丢失问题） */
+    private fun restoreCookiesIfNeeded(cred: BiliCredential) {
+        if (cookieProvider.getCookie("SESSDATA") != null || cred.sessdata.isBlank()) return
+        val cookies = buildList {
+            add(Cookie.Builder().name("SESSDATA").value(cred.sessdata)
+                .domain("api.bilibili.com").path("/").secure().httpOnly().build())
+            if (cred.biliJct.isNotBlank())
+                add(Cookie.Builder().name("bili_jct").value(cred.biliJct)
+                    .domain("api.bilibili.com").path("/").httpOnly().build())
+            if (cred.buvid3.isNotBlank())
+                add(Cookie.Builder().name("buvid3").value(cred.buvid3)
+                    .domain("api.bilibili.com").path("/").build())
+            if (cred.dedeuserId.isNotBlank())
+                add(Cookie.Builder().name("DedeUserID").value(cred.dedeuserId)
+                    .domain("api.bilibili.com").path("/").build())
+        }
+        cookieProvider.saveFromResponse("https://api.bilibili.com".toHttpUrl(), cookies)
     }
 
     fun refreshCredential() {
@@ -108,6 +169,10 @@ class HomeViewModel(
         _state.update { it.copy(phase = Phase.PARSING, error = null) }
         try {
                 val video = repository.getVideoInfo(bvid)
+                val pages = video.pages ?: emptyList()
+                val seriesInfo = if (pages.size > 1) {
+                    SeriesInfo(total = pages.size, pages = pages)
+                } else null
                 _state.update {
                     it.copy(
                         phase = Phase.PARSED,
@@ -115,7 +180,12 @@ class HomeViewModel(
                         currentBvid = bvid,
                         subtitles = emptyList(),
                         markdown = "",
-                        error = null
+                        error = null,
+                        seriesInfo = seriesInfo,
+                        extractionMode = ExtractionMode.SINGLE,
+                        seriesProgress = null,
+                        seriesResults = null,
+                        seriesMergedMarkdown = ""
                     )
                 }
             } catch (e: Exception) {
@@ -125,7 +195,16 @@ class HomeViewModel(
             }
         }
 
+    fun setExtractionMode(mode: ExtractionMode) {
+        _state.update { it.copy(extractionMode = mode) }
+    }
+
     fun extractSubtitles() {
+        if (_state.value.extractionMode == ExtractionMode.SERIES) {
+            extractSeries()
+            return
+        }
+
         val credential = _state.value.credential
         if (!credential.isLoggedIn) {
             _state.update {
@@ -179,6 +258,131 @@ class HomeViewModel(
             } finally {
                 stopTimer()
             }
+        }
+    }
+
+    fun cancelSeriesExtraction() {
+        _seriesCancelled = true
+    }
+
+    private fun extractSeries() {
+        val credential = _state.value.credential
+        if (!credential.isLoggedIn) {
+            _state.update {
+                it.copy(phase = Phase.ERROR, error = "请先登录B站账号，再提取字幕", loginRequired = true)
+            }
+            return
+        }
+
+        val video = _state.value.videoInfo ?: return
+        val bvid = _state.value.currentBvid ?: return
+        val pages = _state.value.seriesInfo?.pages ?: return
+        val totalPages = pages.size
+        val url = "https://www.bilibili.com/video/$bvid"
+
+        viewModelScope.launch {
+            _state.update { it.copy(phase = Phase.SERIES_EXTRACTING, error = null, elapsedMs = 0, seriesResults = null, seriesMergedMarkdown = "") }
+            _seriesCancelled = false
+            startTimer()
+
+            try {
+                // 服务端检测登录是否过期
+                try {
+                    val navResp = api.getNav()
+                    if (navResp.data?.isLogin != true) {
+                        _state.update {
+                            it.copy(phase = Phase.ERROR, error = "B站登录已过期，请重新登录", loginRequired = true)
+                        }
+                        return@launch
+                    }
+                } catch (_: Exception) {
+                }
+
+                val results = mutableListOf<SeriesPartResult>()
+                // 只取第一集的评论
+                val comments = try {
+                    repository.getComments(video.aid)
+                } catch (_: Exception) {
+                    emptyList()
+                }
+
+                for ((index, page) in pages.withIndex()) {
+                    if (_seriesCancelled) break
+
+                    val pageNumber = index + 1
+                    _state.update {
+                        it.copy(seriesProgress = SeriesProgress(current = pageNumber, total = totalPages, part = page.part))
+                    }
+
+                    val partUrl = "$url?p=$pageNumber"
+                    val partStartTime = System.currentTimeMillis()
+
+                    val subtitleResult = repository.getSubtitlesSafe(bvid, page.cid, page.page)
+                    val result = if (subtitleResult.isSuccess) {
+                        val subtitles = subtitleResult.getOrDefault(emptyList())
+                        val partMd = if (subtitles.isNotEmpty()) {
+                            MarkdownGen.generatePart(video, page, subtitles, partUrl)
+                        } else {
+                            MarkdownGen.generatePlaceholder(page, "该分P暂无可用字幕")
+                        }
+                        val elapsed = System.currentTimeMillis() - partStartTime
+                        SeriesPartResult(
+                            page = pageNumber,
+                            part = page.part,
+                            subtitles = subtitles,
+                            markdown = partMd,
+                            elapsedMs = elapsed,
+                            error = if (subtitles.isEmpty()) "无字幕" else null
+                        )
+                    } else {
+                        val errorMsg = subtitleResult.exceptionOrNull()?.message ?: "提取失败"
+                        val partMd = MarkdownGen.generatePlaceholder(page, errorMsg)
+                        val elapsed = System.currentTimeMillis() - partStartTime
+                        SeriesPartResult(
+                            page = pageNumber,
+                            part = page.part,
+                            subtitles = emptyList(),
+                            markdown = partMd,
+                            elapsedMs = elapsed,
+                            error = errorMsg
+                        )
+                    }
+                    results.add(result)
+                }
+
+                val mergedMd = MarkdownGen.generateMerged(
+                    results.map { MarkdownGen.PartInput(it.page, it.part, it.subtitles, it.markdown, it.error) },
+                    video, url, comments
+                )
+
+                stopTimer()
+                _state.update {
+                    it.copy(
+                        phase = Phase.SERIES_DONE,
+                        seriesResults = results,
+                        seriesProgress = null,
+                        seriesMergedMarkdown = mergedMd,
+                        elapsedMs = _state.value.elapsedMs
+                    )
+                }
+            } catch (e: Exception) {
+                stopTimer()
+                _state.update {
+                    it.copy(phase = Phase.ERROR, error = e.message ?: "系列提取失败")
+                }
+            }
+        }
+    }
+
+    fun dismissSeriesResult() {
+        _state.update {
+            it.copy(
+                phase = Phase.PARSED,
+                seriesProgress = null,
+                seriesResults = null,
+                seriesMergedMarkdown = "",
+                elapsedMs = 0
+            )
         }
     }
 

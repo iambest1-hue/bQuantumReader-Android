@@ -61,7 +61,7 @@ class VideoRepository(
     }
 
     /** 通过 /x/player/wbi/v2 获取字幕内容 */
-    suspend fun getSubtitles(bvid: String, cid: Long): List<SubtitleEntry> {
+    suspend fun getSubtitles(bvid: String, cid: Long, page: Int? = null): List<SubtitleEntry> {
         val errors = mutableListOf<String>()
 
         // 方案A: WBI签名API (含重试)
@@ -97,8 +97,8 @@ class VideoRepository(
             errors.add("PlayerV2: ${e.message}")
         }
 
-        // 方案C: 视频页 HTML
-        val html = fetchVideoPage(bvid)
+        // 方案C: 视频页 HTML（多P视频带上 ?p=N 参数）
+        val html = fetchVideoPage(bvid, page)
         if (html != null) {
             val subUrl = extractSubtitleUrl(html)
             if (subUrl != null) return fetchSubtitleContent(subUrl)
@@ -113,25 +113,14 @@ class VideoRepository(
     private suspend fun getSubtitlesViaWbi(bvid: String, cid: Long): List<SubtitleEntry> {
         val mixinKey = wbiSign.getMixinKey(bvid)
 
-        val (dmImgStr, dmCoverStr) = randomDmStrs()
         val params = mapOf(
             "bvid" to bvid,
-            "cid" to cid.toString(),
-            "isGaiaAvoided" to "false",
-            "web_location" to "1315873",
-            "dm_img_list" to "[]",
-            "dm_img_str" to dmImgStr,
-            "dm_cover_img_str" to dmCoverStr,
-            "dm_img_inter" to """{"ds":[],"wh":[0,0,0],"of":[0,0,0]}"""
+            "cid" to cid.toString()
         )
         val (wRid, wts) = wbiSign.signParams(params, mixinKey)
 
         val resp = api.getSubtitleList(
-            bvid = bvid, cid = cid, wRid = wRid, wts = wts,
-            isGaiaAvoided = "false", webLocation = "1315873",
-            dmImgList = "[]", dmImgStr = dmImgStr,
-            dmCoverImgStr = dmCoverStr,
-            dmImgInter = """{"ds":[],"wh":[0,0,0],"of":[0,0,0]}"""
+            bvid = bvid, cid = cid, wRid = wRid, wts = wts
         )
         if (resp.code != 0) throw Exception("WBI API 返回 code=${resp.code}: ${resp.message}")
         val subtitles = resp.data?.subtitle?.subtitles
@@ -142,6 +131,18 @@ class VideoRepository(
     /** 下载并解析指定字幕 URL */
     suspend fun downloadSubtitle(subtitleUrl: String): List<SubtitleEntry> =
         fetchSubtitleContent(subtitleUrl)
+
+    /** 安全获取单集字幕，不抛异常 */
+    suspend fun getSubtitlesSafe(bvid: String, cid: Long, page: Int? = null): Result<List<SubtitleEntry>> {
+        return try {
+            val subtitles = getSubtitles(bvid, cid, page)
+            Result.success(subtitles)
+        } catch (e: NoSubtitleException) {
+            Result.success(emptyList()) // 无字幕视为可继续的空结果
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     /** 获取视频全部评论（翻页直到获取完，最多 200 条） */
     suspend fun getComments(aid: Long, maxPages: Int = 10): List<Comment> {
@@ -171,11 +172,16 @@ class VideoRepository(
         }
     }
 
-    private suspend fun fetchVideoPage(bvid: String): String? {
+    private suspend fun fetchVideoPage(bvid: String, page: Int? = null): String? {
+        val url = if (page != null && page > 1) {
+            "https://www.bilibili.com/video/$bvid?p=$page"
+        } else {
+            "https://www.bilibili.com/video/$bvid"
+        }
         return try {
             withContext(Dispatchers.IO) {
                 val request = Request.Builder()
-                    .url("https://www.bilibili.com/video/$bvid")
+                    .url(url)
                     .header("User-Agent", UA)
                     .header("Accept", "text/html,application/xhtml+xml")
                     .header("Accept-Language", "zh-CN,zh;q=0.9")
