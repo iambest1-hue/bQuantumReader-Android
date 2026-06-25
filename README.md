@@ -46,8 +46,8 @@
 
 ## 截图
 
-![主界面](assets/1.jpg)
-![提取结果](assets/2.jpg)
+<img src="assets/1.jpg" width="33%" alt="主界面">
+<img src="assets/2.jpg" width="33%" alt="提取结果">
 
 ## 技术栈
 
