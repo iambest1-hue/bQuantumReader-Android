@@ -5,6 +5,11 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
+data class ResolvedLink(
+    val bvid: String,
+    val fullUrl: String
+)
+
 class LinkParser(private val okHttpClient: OkHttpClient) {
     private val BVID_REGEX = Regex("BV1[a-zA-Z0-9]{9}")
     private val AID_REGEX = Regex("av\\d+", RegexOption.IGNORE_CASE)
@@ -21,8 +26,13 @@ class LinkParser(private val okHttpClient: OkHttpClient) {
 
     fun hasShortLink(input: String): Boolean = B23_REGEX.containsMatchIn(input)
 
-    /** 解析 b23.tv 短链，获取真实 BV 号 */
-    suspend fun resolveShortUrl(shortUrl: String): String? {
+    fun extractPageNumber(input: String): Int? {
+        val regex = Regex("[?&]p=(\\d+)")
+        return regex.find(input)?.groupValues?.get(1)?.toIntOrNull()
+    }
+
+    /** 解析 b23.tv 短链，获取真实 BV 号和完整 URL */
+    suspend fun resolveShortUrl(shortUrl: String): ResolvedLink? {
         return withContext(Dispatchers.IO) {
             try {
                 val url = if (shortUrl.startsWith("http")) shortUrl
@@ -32,11 +42,11 @@ class LinkParser(private val okHttpClient: OkHttpClient) {
                     .header("User-Agent", UA)
                     .build()
                 val response = okHttpClient.newCall(request).execute()
-                // 从重定向 URL 或响应体中提取 BV 号
                 val finalUrl = response.request.url.toString()
                 response.close()
-                BVID_REGEX.find(finalUrl)?.value
+                val bvid = BVID_REGEX.find(finalUrl)?.value
                     ?: AID_REGEX.find(finalUrl)?.value?.lowercase()
+                bvid?.let { ResolvedLink(it, finalUrl) }
             } catch (_: Exception) {
                 null
             }

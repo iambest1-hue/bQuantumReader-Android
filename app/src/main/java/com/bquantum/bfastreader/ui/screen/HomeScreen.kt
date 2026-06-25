@@ -212,13 +212,16 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            val firstPageTitle = state.videoInfo?.pages?.firstOrNull()?.part
-                                ?.take(30) ?: ""
+                            val currentPage = state.pageNumber ?: 1
+                            val currentPart = state.videoInfo?.pages
+                                ?.firstOrNull { it.page == currentPage }
+                                ?.part?.take(30) ?: ""
+                            val pageLabel = if (state.pageNumber != null) "P${state.pageNumber} $currentPart" else "P1 $currentPart"
                             FilterChip(
                                 selected = state.extractionMode == ExtractionMode.SINGLE,
                                 onClick = { viewModel.setExtractionMode(ExtractionMode.SINGLE) },
                                 label = {
-                                    Text("仅提取当前视频：$firstPageTitle",
+                                    Text("仅提取当前视频：$pageLabel",
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis)
                                 },

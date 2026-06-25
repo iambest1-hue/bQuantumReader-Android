@@ -13,6 +13,7 @@ import com.bquantum.bfastreader.data.repository.NoSubtitleException
 import com.bquantum.bfastreader.data.repository.VideoRepository
 import com.bquantum.bfastreader.domain.LinkParser
 import com.bquantum.bfastreader.domain.MarkdownGen
+import com.bquantum.bfastreader.domain.ResolvedLink
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -42,7 +43,9 @@ data class HomeUiState(
     val extractionMode: ExtractionMode = ExtractionMode.SINGLE,
     val seriesProgress: SeriesProgress? = null,
     val seriesResults: List<SeriesPartResult>? = null,
-    val seriesMergedMarkdown: String = ""
+    val seriesMergedMarkdown: String = "",
+    // URL 中指定的分P（?p=N）
+    val pageNumber: Int? = null
 )
 
 data class SeriesInfo(
@@ -131,7 +134,7 @@ class HomeViewModel(
     }
 
     fun updateUrl(url: String) {
-        _state.update { it.copy(inputUrl = url, error = null) }
+        _state.update { it.copy(inputUrl = url, error = null, pageNumber = null) }
     }
 
     fun parseLink(url: String = _state.value.inputUrl) {
@@ -149,7 +152,8 @@ class HomeViewModel(
                 try {
                     val resolved = linkParser.resolveShortUrl(shortUrl)
                     if (resolved != null) {
-                        parseResolvedBvid(resolved)
+                        val pageNumber = linkParser.extractPageNumber(resolved.fullUrl)
+                        parseResolvedBvid(resolved.bvid, pageNumber)
                     } else {
                         _state.update { it.copy(error = "无法解析短链接 $shortUrl", phase = Phase.ERROR) }
                     }
@@ -160,12 +164,13 @@ class HomeViewModel(
             return
         }
 
+        val pageNumber = linkParser.extractPageNumber(url)
         viewModelScope.launch {
-            parseResolvedBvid(bvid)
+            parseResolvedBvid(bvid, pageNumber)
         }
     }
 
-    private suspend fun parseResolvedBvid(bvid: String) {
+    private suspend fun parseResolvedBvid(bvid: String, pageNumber: Int? = null) {
         _state.update { it.copy(phase = Phase.PARSING, error = null) }
         try {
                 val video = repository.getVideoInfo(bvid)
@@ -182,10 +187,11 @@ class HomeViewModel(
                         markdown = "",
                         error = null,
                         seriesInfo = seriesInfo,
-                        extractionMode = ExtractionMode.SINGLE,
+                        extractionMode = if (pageNumber != null) ExtractionMode.SINGLE else ExtractionMode.SINGLE,
                         seriesProgress = null,
                         seriesResults = null,
-                        seriesMergedMarkdown = ""
+                        seriesMergedMarkdown = "",
+                        pageNumber = pageNumber
                     )
                 }
             } catch (e: Exception) {
@@ -215,7 +221,9 @@ class HomeViewModel(
 
         val video = _state.value.videoInfo ?: return
         val bvid = _state.value.currentBvid ?: return
-        val url = "https://www.bilibili.com/video/$bvid"
+        val baseUrl = "https://www.bilibili.com/video/$bvid"
+        val pageNumber = _state.value.pageNumber
+        val url = if (pageNumber != null) "$baseUrl?p=$pageNumber" else baseUrl
 
         viewModelScope.launch {
             _state.update { it.copy(phase = Phase.EXTRACTING, error = null, elapsedMs = 0) }
@@ -236,7 +244,9 @@ class HomeViewModel(
                 }
 
                 // 并行获取字幕和评论
-                val subtitlesDeferred = viewModelScope.async { repository.getSubtitles(bvid, video.cid) }
+                val targetCid = _state.value.pageNumber?.let { video.pages?.getOrNull(it - 1)?.cid }
+                    ?: video.cid
+                val subtitlesDeferred = viewModelScope.async { repository.getSubtitles(bvid, targetCid) }
                 val commentsDeferred = viewModelScope.async {
                     try {
                         repository.getComments(video.aid)
